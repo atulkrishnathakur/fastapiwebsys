@@ -1,0 +1,92 @@
+services:
+  websys:
+    build:
+      context: . # directory where docker file created. Here dot(.) used for root directory
+      dockerfile: dockerfiles/Dockerfile.dev
+    image: websys:latest
+    container_name: websyscontainer
+    ports:
+      - "8081:8000" # Maps port 8081 on the host to port 8000 in the container. Here port map as <hostport>:<containerport>
+    env_file:
+      - .env # Load all environment variables from the .env file
+    environment:
+      - ENV=$ENV # Explicitly defines the ENV variable from the .env file
+    
+    volumes:
+      - .:/websys # Bind-mounted local directory for live updates. but it will be not use in production
+      - websysdata:/websysstore
+
+    networks:
+      - mywebsysnetwork # Connects to your custom network
+    restart: unless-stopped # better for development. better for debuging. If you want to stop container manually then it will not again start automatically. It will start automatically when system reboot
+    
+  nginx: # Service for the Nginx web server
+    image: nginx:stable # Uses the stable version of the official Nginx image
+    container_name: nginxcontainer # Custom name for the container
+    ports:
+      - "80:80" # Maps port 80 on the host to port 80 in the container. Here port map as <hostport>:<containerport>
+    volumes:
+      - ./nginx-dev.conf:/etc/nginx/nginx.conf:ro # Mounts the custom Nginx configuration file in read-only mode. It is bind mount. It is not persistent valume
+    depends_on:
+      - websys # Ensures websys service starts before Nginx
+    networks:
+      - mywebsysnetwork # Connects to your custom network
+    restart: always # Automatically restarts the container if it stops or after a host machine reboot
+  
+  mysql:
+    image: mysql:8.0
+    container_name: mysqlcontainer
+    env_file:
+      - .env
+    environment:
+      - MYSQL_DATABASE=$MYSQL_DATABASE
+      - MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysqldata:/var/lib/mysql
+      - mysqlbackup:/mysqlbackup
+    networks:
+      - mywebsysnetwork
+    restart: always
+
+  workbench:
+    image: linuxserver/mysql-workbench:8.0.42
+    container_name: mysqlworkbenchcontainer
+    cap_add:
+      - IPC_LOCK
+    ports:
+      - "3000:3000"  # For GUI access via VNC or web
+      - "3001:3001"  # noVNC access
+    env_file:
+      - .env
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Kolkata
+    volumes:
+      - mysqlworkbench:/config
+    networks:
+      - mywebsysnetwork
+    restart: always
+
+volumes:
+  websysdata:
+    driver: local
+    name: websys_store
+  mysqldata:
+    driver: local
+    name: websys_mysqldata
+  
+  mysqlbackup:
+    driver: local
+    name: websys_mysqlbackup
+
+  mysqlworkbench:
+    driver: local
+    name: websys_mysqlworkbench
+
+networks:
+  mywebsysnetwork: # Ensure this name matches all other references
+    driver: bridge
+    name: websysnetwork # Explicitly name defined of network

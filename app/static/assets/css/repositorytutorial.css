@@ -1,0 +1,60 @@
+    
+       .aktgithub  h1, h2, h3, h4, h5, h6 {
+            color: #007bff;
+            margin-top: 1.5em;
+            text-align:left;
+            font-size:24px;
+        }
+       .aktgithub p, ul, ol {
+            color: black;
+            margin-bottom: 1em;
+            word-wrap: break-word;
+            text-align: left; 
+        }
+       .aktgithub a {
+            color: #007bff;
+            text-decoration: none;
+        }
+       .aktgithub a:hover {
+            text-decoration: underline;
+        }
+       .aktgithub pre {
+            background-color: #f1f1f1;
+            color:black;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: auto;
+            text-align: left; 
+        }
+       .aktgithub code {
+        
+            padding: 2px 5px;
+            border-radius: 3px;
+            text-align: left; 
+        }
+       .aktgithub ul, ol {
+            padding-left: 20px;
+        }
+       .aktgithub blockquote {
+            margin: 0 0 1em;
+            padding: 10px 20px;
+            background-color: #e9ecef;
+            border-left: 5px solid #ccc;
+            text-align: left; 
+        }
+       .aktgithub table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 1em;
+            text-align: left; 
+        }
+       .aktgithub th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left; 
+        }
+       .aktgithub th {
+            background-color: #f8f9fa;
+        }
+    
