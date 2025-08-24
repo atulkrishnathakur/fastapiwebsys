@@ -6,8 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from sqlalchemy import text
-from typing import List
-from typing import Optional
+from typing import Any, Annotated, Optional, List
 from sqlalchemy import ForeignKey
 from sqlalchemy import String
 from sqlalchemy.orm import DeclarativeBase
@@ -18,7 +17,6 @@ from sqlalchemy import inspect
 from sqlalchemy import (BigInteger,Column,PrimaryKeyConstraint,Text,String,Integer,DateTime,
 BigInteger,SmallInteger,func,UniqueConstraint,ForeignKey,Identity)
 from sqlalchemy import (select,insert,update,delete,join,and_, or_ )
-from typing import Annotated
 from fastapi.responses import JSONResponse, ORJSONResponse
 from pydantic import (BaseModel,Field, model_validator, EmailStr, ModelWrapValidatorHandler, ValidationError, AfterValidator,BeforeValidator,PlainValidator, ValidatorFunctionWrapHandler)
 from datetime import datetime
@@ -150,6 +148,22 @@ class CourseChapterDataDtl(Base):
     is_try_yourself: Mapped[String] = mapped_column('is_try_yourself',String(1),nullable=True)
     
 
+#### Pydantic model work start
+
+class GetCourse(BaseModel):
+    course_group_id: int = Field(example=0)
+
+class GetVerticalMenuGroup(BaseModel):
+    course_id: int = Field(example=0)
+
+class GetVerticalMenuUrl(BaseModel):
+    course_id: int = Field(example=0)
+
+class GetChapterData(BaseModel):
+    vertical_menu_id: int = Field(example=0)
+
+#### Pydantic model work end
+
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
@@ -158,8 +172,8 @@ async def read_item(request: Request):
     dbsession = SessionLocal()
     return templates.TemplateResponse(request=request, name="dashboard.html")
 
-@app.get("/course_group",name="coursegroup")
-async def get_course_group(request: Request):
+@app.get("/all-course-group",name="allcoursegroup")
+async def get_all_course_group(request: Request):
     try:
         dbsession = SessionLocal()
         http_status_code = status.HTTP_200_OK
@@ -196,8 +210,8 @@ async def get_course_group(request: Request):
         return response
 
     
-@app.get("/course",name="coursegroup")
-async def get_course(request: Request):
+@app.get("/all-course",name="allcourse")
+async def get_all_course(request: Request):
     try:
         dbsession = SessionLocal()
         http_status_code = status.HTTP_200_OK
@@ -237,9 +251,51 @@ async def get_course(request: Request):
         response = JSONResponse(content=data,status_code=http_status_code)
         return response
     
-
-@app.get("/vertical_menu_group",name="verticalmenugroup")
-async def get_vertical_menu_group(request: Request):
+@app.post("/course",name="course")
+async def get_course(request: Request, coursereq: GetCourse):
+    try:
+        courseGroupId = coursereq.course_group_id
+        dbsession = SessionLocal()
+        http_status_code = status.HTTP_200_OK
+        stmt = select(CourseMaster,CourseGroupMaster).join(CourseGroupMaster,CourseMaster.course_group_id == CourseGroupMaster.id).where(CourseMaster.course_group_id == courseGroupId).order_by(CourseMaster.id)
+        result = dbsession.execute(stmt).all()
+        
+        datalist = list()
+        for courseObj,courseGroupObj in result:
+            datadict = {}
+            datadict['id'] = courseObj.id
+            datadict['course_name'] = courseObj.course_name
+            datadict['course_group_id'] = courseObj.course_group_id
+            datadict['course_group_name'] = courseGroupObj.course_group_name
+            datadict['status'] = courseObj.status
+            updatedatdate = ""
+            if courseObj.updated_at is not None:
+                updatedatdate = courseObj.updated_at.strftime("%d-%m-%Y")
+            
+            datadict['updated_at'] = updatedatdate
+            datadict['repository_course_status'] = courseObj.repository_course_status
+            datalist.append(datadict)
+            
+        response_dict = {
+            "status_code": http_status_code,
+            "status":True,
+            "message":"Course message",
+            "data":datalist
+        }
+        return response_dict
+    except Exception as e:
+        http_status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        data = {
+            "status_code": http_status_code,
+            "status":False,
+            "message":str(e)
+        }
+        response = JSONResponse(content=data,status_code=http_status_code)
+        return response
+    
+    
+@app.get("/all-vertical-menu-group",name="allverticalmenugroup")
+async def get_all_vertical_menu_group(request: Request):
     try:
         dbsession = SessionLocal()
         http_status_code = status.HTTP_200_OK
@@ -278,9 +334,52 @@ async def get_vertical_menu_group(request: Request):
         response = JSONResponse(content=data,status_code=http_status_code)
         return response
 
+@app.post("/vertical-menu-group",name="verticalmenugroup")
+async def get_vertical_menu_group(
+    request: Request,
+    verticalMenuGroup: GetVerticalMenuGroup
+    ):
+    try:
+        courseId = verticalMenuGroup.course_id
+        dbsession = SessionLocal()
+        http_status_code = status.HTTP_200_OK
+        stmt = select(VerticalMenuGroupMaster,CourseMaster).join(CourseMaster,VerticalMenuGroupMaster.course_id == CourseMaster.id).where(VerticalMenuGroupMaster.course_id==courseId).order_by(VerticalMenuGroupMaster.id)
+        result = dbsession.execute(stmt).all()
+        
+        datalist = list()
+        for vmenuObj, courseObj in result:
+            datadict = {}
+            datadict['id'] = vmenuObj.id
+            datadict['group_name'] = vmenuObj.group_name
+            datadict['course_id'] = vmenuObj.course_id
+            datadict['course_name'] = courseObj.course_name
+            datadict['status'] = vmenuObj.status
+            updatedatdate = ""
+            if vmenuObj.updated_at is not None:
+                updatedatdate = vmenuObj.updated_at.strftime("%d-%m-%Y")
+            
+            datadict['updated_at'] = updatedatdate
+            datalist.append(datadict)
+            
+        response_dict = {
+            "status_code": http_status_code,
+            "status":True,  
+            "message":"Vertical Menu Group",
+            "data":datalist
+        }
+        return response_dict
+    except Exception as e:
+        http_status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        data = {
+            "status_code": http_status_code,
+            "status":False,
+            "message":str(e)
+        }
+        response = JSONResponse(content=data,status_code=http_status_code)
+        return response
 
-@app.get("/vertical-menu-url",name="verticalmenuurl")
-async def get_vertical_menu_url(request: Request):
+@app.get("/all-vertical-menu-url",name="allverticalmenuurl")
+async def get_all_vertical_menu_url(request: Request):
     try:
         dbsession = SessionLocal()
         http_status_code = status.HTTP_200_OK
@@ -338,6 +437,73 @@ async def get_vertical_menu_url(request: Request):
         }
         response = JSONResponse(content=data,status_code=http_status_code)
         return response
+
+
+@app.post("/vertical-menu-url",name="verticalmenuurl")
+async def get_vertical_menu_url(
+    request: Request,
+    getVerticalMenuUrl:GetVerticalMenuUrl
+    ):
+    try:
+        courseId = getVerticalMenuUrl.course_id
+        dbsession = SessionLocal()
+        http_status_code = status.HTTP_200_OK
+        # outerjoin() used for left join
+        stmt = (
+            select(VerticalMenuUrlMaster,VerticalMenuGroupMaster,CourseMaster,CourseGroupMaster)
+            .outerjoin(VerticalMenuGroupMaster,VerticalMenuUrlMaster.vertical_menu_group_id==VerticalMenuGroupMaster.id)
+            .outerjoin(CourseMaster,VerticalMenuUrlMaster.course_id==CourseMaster.id)
+            .outerjoin(CourseGroupMaster,VerticalMenuUrlMaster.course_group_id==CourseGroupMaster.id)
+            .where(VerticalMenuUrlMaster.course_id == courseId)
+            .order_by(VerticalMenuUrlMaster.id)
+            )
+        result = dbsession.execute(stmt).all()
+        datalist = list()
+        for vmenu,vmenugroup,course,coursegroup in result:
+            datadict = {}
+            datadict['id'] = vmenu.id
+            datadict['menu_order_by'] = vmenu.menu_order_by
+            datadict['route_name'] = none_to_empty(vmenu.route_name)
+            datadict['course_id'] = vmenu.course_id
+            datadict['course_name'] = course.course_name
+            datadict['vertical_menu_group_id'] = vmenu.vertical_menu_group_id
+            datadict['vertical_menu_group_name'] = vmenugroup.group_name
+            datadict['status'] = vmenu.status
+            updatedatdate = ""
+            if vmenu.updated_at is not None:
+                updatedatdate = vmenu.updated_at.strftime("%d-%m-%Y")
+            
+            datadict['updated_at'] = none_to_empty(updatedatdate)
+            datadict['chapter_heading_main'] = vmenu.chapter_heading_main
+            datadict['menu_name'] = vmenu.menu_name
+            datadict['url_slug'] = vmenu.url_slug
+            datadict['is_course_home'] = vmenu.is_course_home
+            datadict['title_tag'] = vmenu.title_tag
+            datadict['meta_tag_keywords'] = vmenu.meta_tag_keywords
+            datadict['meta_tag_description'] = vmenu.meta_tag_description
+            datadict['hidden_ranking_contents'] = vmenu.hidden_ranking_contents
+            datadict['course_group_id'] = vmenu.course_group_id
+            datadict['course_group_name'] = coursegroup.course_group_name
+
+            datalist.append(datadict)
+            
+        response_dict = {
+            "status_code": http_status_code,
+            "status":True,
+            "message":"Vertical menu",
+            "data":datalist
+        }
+        return response_dict
+    except Exception as e:
+        http_status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        data = {
+            "status_code": http_status_code,
+            "status":False,
+            "message":str(e)
+        }
+        response = JSONResponse(content=data,status_code=http_status_code)
+        return response
+
 
 @app.get("/all-chapters",name="allchapters")
 async def get_all_chapter_data(request: Request):
@@ -412,3 +578,80 @@ async def get_all_chapter_data(request: Request):
         response = JSONResponse(content=data,status_code=http_status_code)
         return response
 
+@app.post("/chapter",name="chapter")
+async def get_chapter_data(
+    request: Request,
+    getChapterData: GetChapterData
+    ):
+    try:
+        verticalMenuId = getChapterData.vertical_menu_id
+        dbsession = SessionLocal()
+        http_status_code = status.HTTP_200_OK
+        # outerjoin() used for left join
+        baseUrl = request.base_url._url
+        stmt = (
+            select(CourseChapterDataDtl,CourseMaster,VerticalMenuUrlMaster)
+            .outerjoin(CourseMaster,CourseChapterDataDtl.course_id==CourseMaster.id)
+            .outerjoin(VerticalMenuUrlMaster,CourseChapterDataDtl.vertical_menu_id==VerticalMenuUrlMaster.id)
+            .where(CourseChapterDataDtl.vertical_menu_id == verticalMenuId)
+            .order_by(CourseChapterDataDtl.id)
+            )
+        result = dbsession.execute(stmt).all()
+        datalist = list()
+        for courseChapDtl,course,vmenu in result:
+            datadict = {}
+            datadict['id'] = courseChapDtl.id
+            datadict['course_id'] = courseChapDtl.course_id
+            datadict['course_name'] = course.course_name
+            datadict['vertical_menu_id'] = courseChapDtl.vertical_menu_id
+            datadict['menu_name'] = vmenu.menu_name
+            datadict['chapter_block_heading'] = courseChapDtl.chapter_block_heading
+            datadict['paragraph1'] = courseChapDtl.paragraph1
+            datadict['paragraph2'] = courseChapDtl.paragraph2
+            datadict['paragraph3'] = courseChapDtl.paragraph3
+            datadict['paragraph4'] = courseChapDtl.paragraph4
+            datadict['paragraph5'] = courseChapDtl.paragraph5
+            datadict['syntax'] = courseChapDtl.syntax
+            datadict['syntax_example'] = courseChapDtl.syntax_example
+            
+            datadict['program_code'] = courseChapDtl.program_code
+            datadict['program_output'] = courseChapDtl.program_output
+            datadict['program_algorithm'] = courseChapDtl.program_algorithm
+            datadict['note1'] = courseChapDtl.note1
+            datadict['note2'] = courseChapDtl.note2
+            datadict['note3'] = courseChapDtl.note3
+            datadict['note4'] = courseChapDtl.note4
+            datadict['note5'] = courseChapDtl.note5
+            img1_url = ""
+            if courseChapDtl.img1 is not None:
+                img1_url = f"{baseUrl}static/uploads/{courseChapDtl.img1}"
+            datadict['img1'] = img1_url
+            datadict['img2'] = courseChapDtl.img2
+            datadict['img3'] = courseChapDtl.img3
+            datadict['img4'] = courseChapDtl.img4
+            datadict['img5'] = courseChapDtl.img5
+            datadict['status'] = courseChapDtl.status
+            updatedatdate = ""
+            if courseChapDtl.updated_at is not None:
+                updatedatdate = courseChapDtl.updated_at.strftime("%d-%m-%Y")
+            
+            datadict['updated_at'] = none_to_empty(updatedatdate)
+            datadict['is_try_yourself'] = courseChapDtl.is_try_yourself
+            datalist.append(datadict)
+            
+        response_dict = {
+            "status_code": http_status_code,
+            "status":True,
+            "message":"all chapter data menu",
+            "data":datalist
+        }
+        return response_dict
+    except Exception as e:
+        http_status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        data = {
+            "status_code": http_status_code,
+            "status":False,
+            "message":str(e)
+        }
+        response = JSONResponse(content=data,status_code=http_status_code)
+        return response
