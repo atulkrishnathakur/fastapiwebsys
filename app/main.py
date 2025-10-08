@@ -150,6 +150,10 @@ class CourseChapterDataDtl(Base):
 
 #### Pydantic model work start
 
+class SaveCourseGroup(BaseModel):
+    course_group_name: str = Field(example="Test")
+    course_group_status: str = Field(example="A")
+
 class GetCourse(BaseModel):
     course_group_id: int = Field(example=0)
 
@@ -209,6 +213,27 @@ async def get_all_course_group(request: Request):
         response = JSONResponse(content=data,status_code=http_status_code)
         return response
 
+@app.post("/add-course-group",name="addcousegroup")
+async def add_course_group(request: Request, saveCourseGroup: SaveCourseGroup):
+    try:
+        # https://docs.sqlalchemy.org/en/20/orm/queryguide/dml.html
+        dbsession = SessionLocal()
+        http_status_code = status.HTTP_200_OK
+        courseGroupName = saveCourseGroup.course_group_name
+        courseGroupStatus = saveCourseGroup.course_group_status
+        dbsession.execute(insert(CourseGroupMaster),[{"course_group_name":courseGroupName,"status":courseGroupStatus}])
+        dbsession.commit()
+        return "saved"
+        
+    except Exception as e:
+        http_status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        data = {
+            "status_code": http_status_code,
+            "status":False,
+            "message":str(e)
+        }
+        response = JSONResponse(content=data,status_code=http_status_code)
+        return response
     
 @app.get("/all-course",name="allcourse")
 async def get_all_course(request: Request):
