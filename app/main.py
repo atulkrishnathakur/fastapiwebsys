@@ -20,8 +20,11 @@ from sqlalchemy import (select,insert,update,delete,join,and_, or_ )
 from fastapi.responses import JSONResponse, ORJSONResponse
 from pydantic import (BaseModel,Field, model_validator, EmailStr, ModelWrapValidatorHandler, ValidationError, AfterValidator,BeforeValidator,PlainValidator, ValidatorFunctionWrapHandler)
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 app = FastAPI()
+
+tz=ZoneInfo("Asia/Kolkata")
 
 engine = create_engine("mysql+pymysql://root:123456789@mysqlcontainer:3306/websysdb?charset=utf8mb4")
 metadata = MetaData()
@@ -221,10 +224,18 @@ async def add_course_group(request: Request, saveCourseGroup: SaveCourseGroup):
         http_status_code = status.HTTP_200_OK
         courseGroupName = saveCourseGroup.course_group_name
         courseGroupStatus = saveCourseGroup.course_group_status
-        dbsession.execute(insert(CourseGroupMaster),[{"course_group_name":courseGroupName,"status":courseGroupStatus}])
+        dbsession.execute(insert(CourseGroupMaster),[{"course_group_name":courseGroupName,"status":courseGroupStatus,"created_at":datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S'),"updated_at":datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')}])
         dbsession.commit()
-        return "saved"
+        datalist = list()
+        response_dict = {
+            "status_code": http_status_code,
+            "status":True,
+            "message":"Course group added",
+            "data":datalist
+        }
         
+        return response_dict
+    
     except Exception as e:
         http_status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
         data = {
