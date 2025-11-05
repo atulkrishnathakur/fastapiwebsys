@@ -156,6 +156,14 @@ class CourseChapterDataDtl(Base):
 class SaveCourseGroup(BaseModel):
     course_group_name: str = Field(example="Test")
     course_group_status: str = Field(example="A")
+    
+    
+class SaveCourse(BaseModel):
+    course_group_id: int = Field(example=0)
+    course_name: str = Field(example="Test")
+    course_status: str = Field(example="A")
+    repository_course_status: int = Field(example=0)
+
 
 class GetCourse(BaseModel):
     course_group_id: int = Field(example=0)
@@ -319,6 +327,38 @@ async def get_course(request: Request, coursereq: GetCourse):
             "data":datalist
         }
         return response_dict
+    except Exception as e:
+        http_status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        data = {
+            "status_code": http_status_code,
+            "status":False,
+            "message":str(e)
+        }
+        response = JSONResponse(content=data,status_code=http_status_code)
+        return response
+
+@app.post("/add-course",name="addcourse")
+async def add_course_group(request: Request, saveCourse: SaveCourse):
+    try:
+        # https://docs.sqlalchemy.org/en/20/orm/queryguide/dml.html
+        dbsession = SessionLocal()
+        http_status_code = status.HTTP_200_OK
+        courseGroupId = saveCourse.course_group_id
+        courseName = saveCourse.course_name
+        courseStatus = saveCourse.course_status
+        repostoryCourseStatus = saveCourse.repository_course_status
+        dbsession.execute(insert(CourseMaster),[{"course_group_id":courseGroupId,"course_name":courseName,"status":courseStatus,"created_at":datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S'),"updated_at":datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S'),"repository_course_status":repostoryCourseStatus}])
+        dbsession.commit()
+        datalist = list()
+        response_dict = {
+            "status_code": http_status_code,
+            "status":True,
+            "message":"Course added",
+            "data":datalist
+        }
+        
+        return response_dict
+    
     except Exception as e:
         http_status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
         data = {
